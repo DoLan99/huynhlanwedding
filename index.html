@@ -4541,6 +4541,68 @@
                                             }
                                         }
 
+                                        const tryPlay = () => {
+                                            if (!hasStarted) {
+                                                // Đảm bảo audio đã load
+                                                if (audio.readyState >= 2) {
+                                                    const playPromise = audio.play();
+                                                    if (playPromise !== undefined) {
+                                                        playPromise.then(() => {
+                                                            isPlaying = true;
+                                                            hasStarted = true;
+                                                            setUI(true);
+                                                        }).catch(() => {
+                                                            // Autoplay bị chặn, sẽ thử lại khi có tương tác
+                                                        });
+                                                    }
+                                                } else {
+                                                    // Chờ audio load xong
+                                                    audio.addEventListener('canplay', function() {
+                                                        if (!hasStarted) {
+                                                            const playPromise = audio.play();
+                                                            if (playPromise !== undefined) {
+                                                                playPromise.then(() => {
+                                                                    isPlaying = true;
+                                                                    hasStarted = true;
+                                                                    setUI(true);
+                                                                }).catch(() => {});
+                                                            }
+                                                        }
+                                                    }, { once: true });
+                                                    audio.load(); // Force load audio
+                                                }
+                                            }
+                                        };
+
+                                        // Thử phát nhạc ngay khi DOM ready
+                                        setTimeout(tryPlay, 100);
+
+                                        // Thử lại khi window load
+                                        window.addEventListener("load", function() {
+                                            if (!hasStarted) {
+                                                setTimeout(tryPlay, 200);
+                                            }
+                                        });
+
+                                        // Thử phát khi user scroll (một số trình duyệt cho phép)
+                                        let scrollAttempted = false;
+                                        window.addEventListener("scroll", function() {
+                                            if (!hasStarted && !scrollAttempted) {
+                                                scrollAttempted = true;
+                                                tryPlay();
+                                            }
+                                        }, { once: true, passive: true });
+
+                                        // Thử phát khi user di chuyển chuột
+                                        let mouseAttempted = false;
+                                        document.addEventListener("mousemove", function() {
+                                            if (!hasStarted && !mouseAttempted) {
+                                                mouseAttempted = true;
+                                                tryPlay();
+                                            }
+                                        }, { once: true, passive: true });
+
+                                        // Fallback: chờ click/touch nếu vẫn chưa phát được
                                         const startOnce = () => {
                                             if (!hasStarted) {
                                                 audio.play().then(() => {
@@ -4550,17 +4612,8 @@
                                                 }).catch(() => { setUI(false); });
                                             }
                                         };
-
-                                        // Tự động phát nhạc khi trang tải
-                                        audio.play().then(() => {
-                                            isPlaying = true;
-                                            hasStarted = true;
-                                            setUI(true);
-                                        }).catch(() => {
-                                            // Nếu trình duyệt chặn autoplay, chờ tương tác người dùng
-                                            document.body.addEventListener("click", startOnce, { once: true });
-                                            document.body.addEventListener("touchstart", startOnce, { once: true, passive: true });
-                                        });
+                                        document.body.addEventListener("click", startOnce, { once: true });
+                                        document.body.addEventListener("touchstart", startOnce, { once: true, passive: true });
 
                                         toggleButton.addEventListener("click", function (event) {
                                             event.stopPropagation();
